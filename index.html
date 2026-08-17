@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Bid Capture Agent | Federal & SLED RFP Intelligence</title>
+    <meta name="description" content="Autonomous AI Agent to capture, parse, and analyze US Federal and SLED government RFPs based on NAICS codes, due dates, and custom capability profiles.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Top Navigation Bar -->
+        <header class="top-nav" id="topNav">
+            <div class="nav-brand">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-radar fa-beat-fade"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>BID CAPTURE <span class="brand-badge">AGENT AI</span></h1>
+                    <span class="brand-sub">US Federal & SLED Procurement Intelligence</span>
+                </div>
+            </div>
+
+            <div class="nav-actions">
+                <div class="live-indicator">
+                    <span class="pulse-dot"></span>
+                    <span>Monitoring 5 Portals</span>
+                </div>
+                <button class="btn btn-secondary" id="btnOpenProfile" title="Configure Company Capability Profile & Upload Deck">
+                    <i class="fa-solid fa-building-shield"></i>
+                    <span>Capability Profile & Deck</span>
+                </button>
+                <button class="btn btn-primary" id="btnTriggerCapture" title="Run Live Ingestion across Portals">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                    <span>Capture New Bids</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-container">
+            <!-- Analytics & Metric Cards -->
+            <section class="metrics-grid" id="metricsGrid">
+                <div class="metric-card card-total">
+                    <div class="metric-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                    <div class="metric-info">
+                        <span class="metric-label">Active Opportunities</span>
+                        <h2 class="metric-value" id="kpiTotalRfps">--</h2>
+                        <span class="metric-trend"><i class="fa-solid fa-bullseye"></i> Targeted NAICS</span>
+                    </div>
+                </div>
+
+                <div class="metric-card card-federal">
+                    <div class="metric-icon"><i class="fa-solid fa-landmark-flag"></i></div>
+                    <div class="metric-info">
+                        <span class="metric-label">Federal (SAM.gov)</span>
+                        <h2 class="metric-value" id="kpiFederalRfps">--</h2>
+                        <span class="metric-trend text-cyan"><i class="fa-solid fa-shield"></i> DoD & Civilian</span>
+                    </div>
+                </div>
+
+                <div class="metric-card card-sled">
+                    <div class="metric-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                    <div class="metric-info">
+                        <span class="metric-label">SLED (State & Local)</span>
+                        <h2 class="metric-value" id="kpiSledRfps">--</h2>
+                        <span class="metric-trend text-purple"><i class="fa-solid fa-tree-city"></i> TX, CA, NY, FL</span>
+                    </div>
+                </div>
+
+                <div class="metric-card card-fit">
+                    <div class="metric-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                    <div class="metric-info">
+                        <span class="metric-label">Avg. Capability Fit</span>
+                        <h2 class="metric-value" id="kpiAvgFit">--%</h2>
+                        <span class="metric-trend text-emerald" id="kpiHighMatches"><i class="fa-solid fa-star"></i> High Matches</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Control & Filter Bar -->
+            <section class="control-panel glass-panel">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="searchInput" placeholder="Search keywords (e.g. Cloud, Cybersecurity, AI, Sensor, Agency, Solicitation #)..." autocomplete="off">
+                    <button class="clear-search-btn" id="btnClearSearch" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="filter-controls">
+                    <!-- Source Segment -->
+                    <div class="segmented-control" id="sourceTypeFilter">
+                        <button class="seg-btn active" data-value="ALL">All Sources</button>
+                        <button class="seg-btn" data-value="FEDERAL"><i class="fa-solid fa-flag-usa"></i> Federal</button>
+                        <button class="seg-btn" data-value="SLED"><i class="fa-solid fa-city"></i> SLED</button>
+                    </div>
+
+                    <!-- NAICS Filter Dropdown -->
+                    <div class="select-group">
+                        <label for="naicsFilter"><i class="fa-solid fa-tags"></i> NAICS:</label>
+                        <select id="naicsFilter">
+                            <option value="">All NAICS</option>
+                            <option value="541512">541512 - Computer Systems Design</option>
+                            <option value="541511">541511 - Custom Software</option>
+                            <option value="541519">541519 - Other Computer Related</option>
+                            <option value="541330">541330 - Engineering Services</option>
+                            <option value="541611">541611 - Management Consulting</option>
+                            <option value="561210">561210 - Facilities Support</option>
+                        </select>
+                    </div>
+
+                    <!-- Min Fit Score Filter -->
+                    <div class="select-group">
+                        <label for="fitFilter"><i class="fa-solid fa-bullseye"></i> Fit Score:</label>
+                        <select id="fitFilter">
+                            <option value="0">All Scores (0%+)</option>
+                            <option value="70">Good Fit (70%+)</option>
+                            <option value="85" selected>Top Match (85%+)</option>
+                        </select>
+                    </div>
+
+                    <!-- Status Filter -->
+                    <div class="select-group">
+                        <label for="statusFilter"><i class="fa-solid fa-list-check"></i> Status:</label>
+                        <select id="statusFilter">
+                            <option value="ALL">All Statuses</option>
+                            <option value="NEW">New</option>
+                            <option value="REVIEWING">Reviewing</option>
+                            <option value="BID">Pursuing (Bid)</option>
+                            <option value="NO_BID">No Bid</option>
+                        </select>
+                    </div>
+
+                    <!-- Export Actions -->
+                    <div class="export-actions">
+                        <button class="btn btn-outline" id="btnExportCsv" title="Export current list to CSV">
+                            <i class="fa-solid fa-file-csv"></i> CSV
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Opportunities Listing -->
+            <section class="opportunities-section">
+                <div class="section-header">
+                    <div class="header-left">
+                        <h3>Captured Solicitations (<span id="resultsCount">0</span>)</h3>
+                        <span class="subtitle">Filtered by due dates & capability match score</span>
+                    </div>
+                    <div class="sort-selector">
+                        <label for="sortBySelect"><i class="fa-solid fa-arrow-down-wide-short"></i> Sort by:</label>
+                        <select id="sortBySelect">
+                            <option value="fit_score:desc">Highest Fit Score</option>
+                            <option value="due_date:asc">Earliest Due Date</option>
+                            <option value="posted_date:desc">Recently Posted</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Cards Grid Container -->
+                <div class="rfp-grid" id="rfpGrid">
+                    <!-- Dynamic RFP Cards injected by JS -->
+                    <div class="loading-state">
+                        <div class="spinner"></div>
+                        <p>Loading procurement pipeline...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal: RFP Inspection & AI Analysis Detail Modal -->
+    <div class="modal-backdrop" id="rfpDetailModal" style="display: none;">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-header">
+                <div class="modal-header-info">
+                    <div class="modal-badges" id="modalBadges"></div>
+                    <h2 class="modal-title" id="modalTitle">Solicitation Title</h2>
+                    <div class="modal-sub" id="modalAgency">Agency Name</div>
+                </div>
+                <button class="modal-close-btn" id="btnCloseDetailModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="modal-body-layout">
+                <!-- Left Details Column -->
+                <div class="modal-main-content">
+                    <!-- Quick Meta Banner -->
+                    <div class="meta-banner">
+                        <div class="meta-item">
+                            <span class="meta-label">Solicitation Number</span>
+                            <span class="meta-val font-mono" id="modalSolNum">--</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Due Date</span>
+                            <span class="meta-val text-amber" id="modalDueDate">--</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">NAICS Code</span>
+                            <span class="meta-val font-mono" id="modalNaics">--</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Set Aside</span>
+                            <span class="meta-val text-cyan" id="modalSetAside">--</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Est. Value</span>
+                            <span class="meta-val text-emerald" id="modalEstValue">--</span>
+                        </div>
+                    </div>
+
+                    <!-- AI Executive Summary Card -->
+                    <div class="detail-section ai-summary-card">
+                        <div class="section-title text-purple">
+                            <i class="fa-solid fa-sparkles"></i> AI Executive Synthesis & Scope Overview
+                        </div>
+                        <p class="ai-summary-text" id="modalAiSummary">--</p>
+                        <div class="fit-rationale-box">
+                            <span class="badge-tag">Fit Analysis Rationale:</span>
+                            <span id="modalFitRationale">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Scope of Work / Key Deliverables -->
+                    <div class="detail-section">
+                        <div class="section-title"><i class="fa-solid fa-list-check"></i> Statement of Work & Deliverables</div>
+                        <ul class="bullet-list" id="modalDeliverables"></ul>
+                    </div>
+
+                    <!-- Mandatory Qualifications & Certifications -->
+                    <div class="detail-section">
+                        <div class="section-title"><i class="fa-solid fa-certificate"></i> Mandatory Qualifications & Prerequisites</div>
+                        <ul class="bullet-list" id="modalQualifications"></ul>
+                    </div>
+
+                    <!-- Compliance Checklist -->
+                    <div class="detail-section">
+                        <div class="section-title"><i class="fa-solid fa-clipboard-check"></i> Required Proposal Volumes & Compliance</div>
+                        <div class="compliance-table-wrapper" id="modalCompliance"></div>
+                    </div>
+
+                    <!-- Evaluation Factors -->
+                    <div class="detail-section">
+                        <div class="section-title"><i class="fa-solid fa-scale-balanced"></i> Evaluation Criteria & Scoring Factors</div>
+                        <div class="eval-criteria-grid" id="modalEvaluation"></div>
+                    </div>
+
+                    <!-- Attachments & Direct Links -->
+                    <div class="detail-section">
+                        <div class="section-title"><i class="fa-solid fa-paperclip"></i> Solicitation Documents & Official Source</div>
+                        <div class="attachments-list" id="modalAttachments"></div>
+                    </div>
+                </div>
+
+                <!-- Right Sidebar: Pursuit Decision & Interactive AI Assistant -->
+                <div class="modal-sidebar">
+                    <!-- Fit Score Ring Card -->
+                    <div class="sidebar-card fit-score-card">
+                        <div class="score-ring-container">
+                            <div class="score-number" id="modalFitScore">0%</div>
+                            <span class="score-caption">Fit Match</span>
+                        </div>
+                        <div class="pursuit-status-selector">
+                            <label>Pursuit Decision:</label>
+                            <div class="status-btn-group">
+                                <button class="status-btn" data-status="BID"><i class="fa-solid fa-thumbs-up"></i> Bid</button>
+                                <button class="status-btn" data-status="REVIEWING"><i class="fa-solid fa-glasses"></i> Review</button>
+                                <button class="status-btn" data-status="NO_BID"><i class="fa-solid fa-thumbs-down"></i> No Bid</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Gemini AI Chat for this RFP -->
+                    <div class="sidebar-card ai-chat-card">
+                        <div class="chat-header">
+                            <i class="fa-solid fa-robot"></i>
+                            <span>Ask Gemini about this RFP</span>
+                        </div>
+                        <div class="chat-suggestions">
+                            <button class="chip" onclick="askPresetQuestion('What are the primary security and clearance requirements?')">Clearance reqs?</button>
+                            <button class="chip" onclick="askPresetQuestion('Are there any subcontractor or small business quotas?')">Subcontract quota?</button>
+                            <button class="chip" onclick="askPresetQuestion('List the key evaluation criteria in order of importance.')">Key eval factors?</button>
+                        </div>
+                        <div class="chat-messages" id="chatMessages">
+                            <div class="chat-bubble ai">
+                                Ask me anything about this RFP—such as compliance gotchas, proposal format rules, or technical deliverables!
+                            </div>
+                        </div>
+                        <div class="chat-input-bar">
+                            <input type="text" id="chatInput" placeholder="Type a question...">
+                            <button id="btnSendChat"><i class="fa-solid fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Trigger Ingestion / Capture Run -->
+    <div class="modal-backdrop" id="captureModal" style="display: none;">
+        <div class="modal-dialog modal-md">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-satellite-dish text-cyan"></i> Capture New Solicitations</h3>
+                <button class="modal-close-btn" id="btnCloseCaptureModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-desc">
+                    Scan target Federal and SLED procurement portals for active RFPs within the specified due date window.
+                </p>
+
+                <div class="form-group">
+                    <label>Target Portals & Sources:</label>
+                    <div class="checkbox-grid">
+                        <label class="check-item"><input type="checkbox" name="portalSource" value="SAM_GOV" checked> Federal (SAM.gov)</label>
+                        <label class="check-item"><input type="checkbox" name="portalSource" value="TX_SMARTBUY" checked> Texas SmartBuy (ESBD)</label>
+                        <label class="check-item"><input type="checkbox" name="portalSource" value="CAL_EPROCURE" checked> California Cal eProcure</label>
+                        <label class="check-item"><input type="checkbox" name="portalSource" value="NYS_CR" checked> New York State Contract Reporter</label>
+                        <label class="check-item"><input type="checkbox" name="portalSource" value="FL_VIP" checked> Florida VIP Marketplace</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="captureDueWindow">Due Date Lookahead Window:</label>
+                    <select id="captureDueWindow" class="form-control">
+                        <option value="15">Next 15 Days</option>
+                        <option value="30">Next 30 Days</option>
+                        <option value="45" selected>Next 45 Days</option>
+                        <option value="60">Next 60 Days</option>
+                    </select>
+                </div>
+
+                <div class="capture-progress-container" id="captureProgress" style="display: none;">
+                    <div class="scanner-bar"><div class="scanner-sweep"></div></div>
+                    <p class="scanner-text" id="scannerStatus">Querying Federal & State registries...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelCapture">Cancel</button>
+                <button class="btn btn-primary" id="btnStartCapture">
+                    <i class="fa-solid fa-play"></i> Start Capture Run
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Company Profile & Capabilities Deck -->
+    <div class="modal-backdrop" id="profileModal" style="display: none;">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fa-solid fa-sliders text-purple"></i> Company Capabilities & Match Rules</h3>
+                <button class="modal-close-btn" id="btnCloseProfileModal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- Capability Deck File Upload Box -->
+                <div class="deck-upload-box">
+                    <div class="deck-icon"><i class="fa-solid fa-file-arrow-up"></i></div>
+                    <div class="deck-info">
+                        <h4>Upload Capability Deck / Past Performance (PDF / TXT)</h4>
+                        <p>Our AI Agent will automatically parse your deck, extract core competencies, target NAICS codes, certifications, and update your matching profile.</p>
+                        <div class="deck-actions">
+                            <input type="file" id="deckFileInput" accept=".pdf,.txt,.docx" style="display: none;">
+                            <button class="btn btn-secondary" id="btnSelectDeckFile"><i class="fa-solid fa-folder-open"></i> Choose Document</button>
+                            <span id="selectedDeckFileName" class="selected-file-label">No file chosen</span>
+                            <button class="btn btn-primary" id="btnUploadDeck" style="display: none;"><i class="fa-solid fa-sparkles"></i> AI Parse & Extract Deck</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-divider"><span>OR EDIT MANUALLY</span></div>
+
+                <div class="form-group">
+                    <label for="profileCompanyName">Company Name:</label>
+                    <input type="text" id="profileCompanyName" class="form-control" placeholder="Enter company name">
+                </div>
+
+                <div class="form-group">
+                    <label for="profileCapabilities">Core Capabilities & Past Performance Deck Summary:</label>
+                    <textarea id="profileCapabilities" rows="4" class="form-control" placeholder="Describe your primary technical capabilities, certifications (e.g. FedRAMP, CMMC, ISO), and domain focus..."></textarea>
+                    <small class="form-hint">Gemini uses this summary to evaluate Fit Scores (0-100%) and write custom pursuit rationales.</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="profileNaics">Target NAICS Codes (Comma separated):</label>
+                    <input type="text" id="profileNaics" class="form-control" placeholder="541512, 541511, 541330, 541611">
+                </div>
+
+                <div class="form-group">
+                    <label for="profileKeywords">Target Domain Keywords (Comma separated):</label>
+                    <input type="text" id="profileKeywords" class="form-control" placeholder="Cloud Migration, Cybersecurity, AI/ML, Data Lakehouse">
+                </div>
+
+                <!-- Re-Score All Button -->
+                <div class="rescore-pipeline-box">
+                    <button class="btn btn-outline" id="btnRescorePipeline">
+                        <i class="fa-solid fa-arrows-spin"></i> Re-Score All Pipeline RFPs with this Profile
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnCancelProfile">Cancel</button>
+                <button class="btn btn-primary" id="btnSaveProfile">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Profile & Rules
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
